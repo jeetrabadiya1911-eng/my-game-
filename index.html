@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WordPulse — Unique Word Guessing Game</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.85); opacity: 0; }
+      70% { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .tile-pop {
+      animation: popIn 0.25s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+  <main class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-5 sm:p-6 space-y-5">
+
+    <!-- Header -->
+    <header class="flex items-center justify-between gap-2">
+      <div>
+        <h1 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+          WordPulse
+        </h1>
+        <p class="text-xs text-slate-400">Guess the 5-letter word using Signal Heat &amp; Clues</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="muteBtn" type="button" aria-label="Toggle sound"
+          class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+          🔊 Sound
+        </button>
+        <button id="newGameBtn" type="button"
+          class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 transition">
+          New Word
+        </button>
+      </div>
+    </header>
+
+    <!-- Unique Feature 1: Signal Heat Meter -->
+    <section class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2">
+      <div class="flex items-center justify-between text-xs font-semibold">
+        <span class="text-slate-400 uppercase tracking-wider">Signal Heat</span>
+        <span id="heatLabel" class="text-cyan-400">0% — Cold</span>
+      </div>
+      <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+        <div id="heatBar" class="h-full w-0 rounded-full bg-gradient-to-r from-sky-500 via-amber-400 to-rose-500 transition-all duration-500"></div>
+      </div>
+    </section>
+
+    <!-- Unique Feature 2: Progressive Mystery Clues -->
+    <section class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mystery Clue</span>
+        <span id="attemptsLeft" class="text-xs font-semibold text-slate-300">6 guesses left</span>
+      </div>
+      <p id="clueText" class="text-sm text-amber-300 font-medium">
+        Make your first guess to unlock Clue #1!
+      </p>
+    </section>
+
+    <!-- Status Toast -->
+    <div id="messageBox" class="hidden text-center text-sm font-semibold px-3 py-2 rounded-lg"></div>
+
+    <!-- Input Form -->
+    <form id="guessForm" class="flex gap-2">
+      <input
+        id="guessInput"
+        type="text"
+        maxlength="5"
+        autocomplete="off"
+        placeholder="Type 5 letters..."
+        aria-label="Enter a 5-letter guess"
+        class="flex-1 bg-slate-950 border border-slate-700 focus:border-cyan-400 focus:outline-none rounded-xl px-4 py-2.5 text-base font-bold uppercase tracking-widest text-white placeholder:normal-case placeholder:tracking-normal placeholder:font-normal placeholder:text-slate-500"
+      />
+      <button
+        id="guessBtn"
+        type="submit"
+        class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-bold text-sm transition disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Guess
+      </button>
+    </form>
+
+    <!-- Guess History Board -->
+    <section aria-label="Guess history" class="space-y-2">
+      <div id="board" class="space-y-2 min-h-[120px] flex flex-col justify-start">
+        <p id="emptyHint" class="text-xs text-slate-500 text-center py-6">
+          Your guesses will appear here. Green = exact spot, Amber = wrong spot.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // 1. Curated word bank with progressive clues
+    const WORD_BANK = [
+      {
+        word: "SPARK",
+        clues: [
+          "Category: Energy & Light",
+          "Clue: A tiny flash that can start a big fire or a bright idea.",
+          "Vibe: Starts with S and ends with a sharp K."
+        ]
+      },
+      {
+        word: "ORBIT",
+        clues: [
+          "Category: Space & Science",
+          "Clue: The invisible path a moon or satellite takes around a planet.",
+          "Vibe: Begins with O and contains a B in the middle."
+        ]
+      },
+      {
+        word: "PRISM",
+        clues: [
+          "Category: Light & Color",
+          "Clue: A glass shape that splits white light into a rainbow.",
+          "Vibe: Starts with P and ends with M."
+        ]
+      },
+      {
+        word: "QUEST",
+        clues: [
+          "Category: Adventure & Games",
+          "Clue: A long, exciting journey to find something important.",
+          "Vibe: Starts with Q and ends with ST."
+        ]
+      },
+      {
+        word: "CHIME",
+        clues: [
+          "Category: Sound & Music",
+          "Clue: A soft, ringing bell sound—like a wind-blown porch ornament.",
+          "Vibe: Starts with CH and ends with a silent E."
+        ]
+      },
+      {
+        word: "FROST",
+        clues: [
+          "Category: Weather & Nature",
+          "Clue: Thin white ice crystals that coat grass on a freezing morning.",
+          "Vibe: Starts with FR and rhymes with 'lost'."
+        ]
+      }
+    ];
+
+    const MAX_GUESSES = 6;
+    let currentTarget = null;
+    let guesses = [];
+    let gameOver = false;
+    let isMuted = false;
+    let audioCtx = null;
+
+    // 2. DOM Elements
+    const guessForm = document.getElementById("guessForm");
+    const guessInput = document.getElementById("guessInput");
+    const guessBtn = document.getElementById("guessBtn");
+    const board = document.getElementById("board");
+    const emptyHint = document.getElementById("emptyHint");
+    const heatBar = document.getElementById("heatBar");
+    const heatLabel = document.getElementById("heatLabel");
+    const clueText = document.getElementById("clueText");
+    const attemptsLeft = document.getElementById("attemptsLeft");
+    const messageBox = document.getElementById("messageBox");
+    const newGameBtn = document.getElementById("newGameBtn");
+    const muteBtn = document.getElementById("muteBtn");
+
+    // 3. Simple Web Audio API synthesizer (no external sound files needed)
+    function playTone(freq, duration = 0.12, type = "sine") {
+      if (isMuted) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === "suspended") {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        // Ignore audio errors if blocked
+      }
+    }
+
+    function showMessage(text, tone = "info") {
+      messageBox.textContent = text;
+      messageBox.className = "text-center text-sm font-semibold px-3 py-2 rounded-lg ";
+      if (tone === "error") {
+        messageBox.className += "bg-rose-500/20 text-rose-300 border border-rose-500/40";
+      } else if (tone === "win") {
+        messageBox.className += "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+      } else {
+        messageBox.className += "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40";
+      }
+      messageBox.classList.remove("hidden");
+    }
+
+    function hideMessage() {
+      messageBox.classList.add("hidden");
+    }
+
+    // 4. Calculate Signal Heat (0–100%) based on alphabetical proximity + letter matches
+    function calculateSignalHeat(guess, target) {
+      if (guess === target) return 100;
+      let totalScore = 0;
+      for (let i = 0; i < 5; i++) {
+        const gCode = guess.charCodeAt(i);
+        const tCode = target.charCodeAt(i);
+        const distance = Math.abs(gCode - tCode); // 0 to 25
+        const letterProximity = Math.max(0, 1 - distance / 25);
+        totalScore += letterProximity * 14; // up to 70 pts for closeness
+        if (guess[i] === target[i]) {
+          totalScore += 6; // bonus for exact position
+        } else if (target.includes(guess[i])) {
+          totalScore += 3; // bonus for right letter, wrong spot
+        }
+      }
+      return Math.min(99, Math.round(totalScore));
+    }
+
+    function updateHeatUI(heat) {
+      heatBar.style.width = `${heat}%`;
+      let status = "Cold";
+      if (heat >= 80) status = "Blazing!";
+      else if (heat >= 60) status = "Warm";
+      else if (heat >= 40) status = "Lukewarm";
+      heatLabel.textContent = `${heat}% — ${status}`;
+    }
+
+    // 5. Evaluate guess letter-by-letter (Green / Amber / Gray)
+    function evaluateGuess(guess, target) {
+      const result = Array(5).fill("absent");
+      const targetChars = target.split("");
+
+      // Pass 1: exact matches
+      for (let i = 0; i < 5; i++) {
+        if (guess[i] === targetChars[i]) {
+          result[i] = "correct";
+          targetChars[i] = null;
+        }
+      }
+      // Pass 2: present in wrong spot
+      for (let i = 0; i < 5; i++) {
+        if (result[i] === "correct") continue;
+        const idx = targetChars.indexOf(guess[i]);
+        if (idx !== -1) {
+          result[i] = "present";
+          targetChars[idx] = null;
+        }
+      }
+      return result;
+    }
+
+    function renderGuessRow(guess, statuses, heat) {
+      if (emptyHint) emptyHint.classList.add("hidden");
+
+      const row = document.createElement("div");
+      row.className = "flex items-center justify-between gap-2 tile-pop";
+
+      const tilesWrap = document.createElement("div");
+      tilesWrap.className = "grid grid-cols-5 gap-1.5 flex-1";
+
+      for (let i = 0; i < 5; i++) {
+        const tile = document.createElement("div");
+        tile.textContent = guess[i];
+        let colorClass = "bg-slate-800 border-slate-700 text-slate-300";
+        if (statuses[i] === "correct") {
+          colorClass = "bg-emerald-500 border-emerald-400 text-slate-950";
+        } else if (statuses[i] === "present") {
+          colorClass = "bg-amber-400 border-amber-300 text-slate-950";
+        }
+        tile.className = `h-11 rounded-lg border flex items-center justify-center font-extrabold text-lg ${colorClass}`;
+        tilesWrap.appendChild(tile);
+      }
+
+      const heatBadge = document.createElement("span");
+      heatBadge.textContent = `${heat}%`;
+      heatBadge.className = "text-xs font-bold text-slate-400 w-10 text-right";
+
+      row.appendChild(tilesWrap);
+      row.appendChild(heatBadge);
+      board.appendChild(row);
+    }
+
+    function startNewGame() {
+      const randomIndex = Math.floor(Math.random() * WORD_BANK.length);
+      currentTarget = WORD_BANK[randomIndex];
+      guesses = [];
+      gameOver = false;
+
+      board.innerHTML = "";
+      board.appendChild(emptyHint);
+      emptyHint.classList.remove("hidden");
+
+      guessInput.value = "";
+      guessInput.disabled = false;
+      guessBtn.disabled = false;
+      attemptsLeft.textContent = `${MAX_GUESSES} guesses left`;
+      clueText.textContent = "Make your first guess to unlock Clue #1!";
+      updateHeatUI(0);
+      hideMessage();
+      guessInput.focus();
+    }
+
+    // 6. Handle Guess Submission
+    guessForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (gameOver) return;
+
+      const raw = guessInput.value.trim().toUpperCase();
+      if (!/^[A-Z]{5}$/.test(raw)) {
+        showMessage("Please enter a valid 5-letter word (A–Z).", "error");
+        playTone(180, 0.15, "sawtooth");
+        return;
+      }
+      if (guesses.includes(raw)) {
+        showMessage("You already guessed that word!", "error");
+        playTone(220, 0.12, "triangle");
+        return;
+      }
+
+      hideMessage();
+      guesses.push(raw);
+
+      const statuses = evaluateGuess(raw, currentTarget.word);
+      const heat = calculateSignalHeat(raw, currentTarget.word);
+      renderGuessRow(raw, statuses, heat);
+      updateHeatUI(heat);
+
+      const remaining = MAX_GUESSES - guesses.length;
+      attemptsLeft.textContent = `${remaining} ${remaining === 1 ? "guess" : "guesses"} left`;
+
+      if (raw === currentTarget.word) {
+        gameOver = true;
+        guessInput.disabled = true;
+        guessBtn.disabled = true;
+        showMessage(`You got it in ${guesses.length}! The word was ${currentTarget.word}.`, "win");
+        playTone(523.25, 0.12);
+        setTimeout(() => playTone(659.25, 0.18), 110);
+      } else if (remaining === 0) {
+        gameOver = true;
+        guessInput.disabled = true;
+        guessBtn.disabled = true;
+        showMessage(`Out of guesses! The secret word was ${currentTarget.word}.`, "error");
+        playTone(160, 0.25, "sawtooth");
+      } else {
+        // Unlock progressive clues based on number of guesses
+        const clueIndex = Math.min(guesses.length - 1, currentTarget.clues.length - 1);
+        clueText.textContent = currentTarget.clues[clueIndex];
+        playTone(360 + heat * 2, 0.1);
+      }
+
+      guessInput.value = "";
+      if (!gameOver) guessInput.focus();
+    });
+
+    newGameBtn.addEventListener("click", () => {
+      playTone(440, 0.08);
+      startNewGame();
+    });
+
+    muteBtn.addEventListener("click", () => {
+      isMuted = !isMuted;
+      muteBtn.textContent = isMuted ? "🔇 Muted" : "🔊 Sound";
+    });
+
+    // Initialize on load
+    startNewGame();
+  </script>
+</body>
+</html>
