@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "WordPulse"
+rootProject.name = "my-game"
 include(":app")

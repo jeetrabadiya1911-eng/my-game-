@@ -1,4 +1,4 @@
-package com.wordpulse.game;
+package com.jeet.mygame;
 
 import android.annotation.SuppressLint;
 import android.os.Bundle;

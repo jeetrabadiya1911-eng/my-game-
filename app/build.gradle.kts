@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "com.wordpulse.game"
+    namespace = "com.jeet.mygame"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.wordpulse.game"
+        applicationId = "com.jeet.mygame"
         minSdk = 21
         targetSdk = 35
         versionCode = 1

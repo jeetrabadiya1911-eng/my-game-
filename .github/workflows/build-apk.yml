@@ -1,4 +1,4 @@
-name: Build WordPulse APK
+name: Build My Game APK
 
 on:
   push:
@@ -32,14 +32,11 @@ jobs:
       - name: Build Debug APK
         run: gradle assembleDebug --stacktrace
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/*.apk WordPulse.apk
-
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WordPulse-APK
-          path: WordPulse.apk
+          name: MyGame-Debug-APK
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
       - name: Upload APK to Release
@@ -47,7 +44,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         with:
           tag_name: v1.0.0
-          name: "WordPulse v1.0.0"
-          files: WordPulse.apk
+          name: "My Game v1.0.0"
+          files: app/build/outputs/apk/debug/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
